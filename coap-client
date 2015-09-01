@@ -16,6 +16,8 @@ import argparse
 import logging
 import subprocess
 import socket
+import codecs
+import binascii
 
 import shlex
 # even though not used directly, this has side effects on the input() function
@@ -38,6 +40,7 @@ def parse_commandline(args):
     p.add_argument('-q', '--quiet', help="Decrease the debug output", action="count")
     p.add_argument('--dump', help="Log network traffic to FILE", metavar="FILE")
     p.add_argument('--interactive', help="Enter interactive mode", action="store_true")
+    p.add_argument('--cik', help="Set the query URI to the binary encoding of CIK (hex string)", metavar="CIK")
     p.add_argument('url', help="CoAP address to fetch")
 
     return p, p.parse_args(args)
@@ -136,6 +139,9 @@ def single_request(args, context=None):
         interface = context
     else:
         interface = aiocoap.proxy.client.ProxyForwarder(options.proxy, context)
+
+    if options.cik:
+        request.opt.uri_query = (binascii.a2b_hex(options.cik),)
 
     try:
         requester = interface.request(request)
