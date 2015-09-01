@@ -137,6 +137,7 @@ OptionNumber.PROXY_URI.format = optiontypes.StringOption
 OptionNumber.PROXY_SCHEME.format = optiontypes.StringOption
 OptionNumber.CONTENT_FORMAT.format = optiontypes.UintOption
 OptionNumber.MAX_AGE.format = optiontypes.UintOption
+# Temporary workaround for non-standard query string
 OptionNumber.URI_QUERY.format = optiontypes.OpaqueOption
 OptionNumber.ACCEPT.format = optiontypes.UintOption
 OptionNumber.BLOCK2.format = optiontypes.BlockOption
