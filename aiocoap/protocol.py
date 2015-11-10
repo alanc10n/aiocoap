@@ -242,7 +242,7 @@ class Context(asyncio.DatagramProtocol, interfaces.RequestProvider):
             return True
         else:
             self.log.debug('New unique message received')
-            self.loop.call_later(EXCHANGE_LIFETIME, functools.partial(self._recent_messages.pop, key))
+            self.loop.call_later(EXCHANGE_LIFETIME, functools.partial(self._recent_messages.pop, key, None))
             self._recent_messages[key] = None
             return False
 
@@ -928,13 +928,15 @@ class Responder(object):
                 self._assembled_request = request
             else:
                 if self._assembled_request is None:
-                    self.respond_with_error(request, REQUEST_ENTITY_INCOMPLETE, "Beginning of block1 transaction unknown to server")
+                    self.log.debug("Returning REQUEST_ENTITY_INCOMPLETE since block 0 appears to be missing")
+                    self.respond_with_non_final_error(request, REQUEST_ENTITY_INCOMPLETE, "Error: Beginning of block1 transaction unknown to server")
                     return
 
                 try:
                     self._assembled_request._append_request_block(request)
                 except error.NotImplemented:
-                    self.respond_with_error(request, NOT_IMPLEMENTED, "Error: Request block received out of order!")
+                    self.log.debug("Returning REQUEST_ENTITY_INCOMPLETE since blocks are missing")
+                    self.respond_with_non_final_error(request, REQUEST_ENTITY_INCOMPLETE, "Error: Request block received out of order!")
                     return
             if block1.more is True:
                 #TODO: SUCCES_CODE Code should be either Changed or Created - Resource check needed
@@ -1016,6 +1018,30 @@ class Responder(object):
         self.log.info("Sending error response: %r"%payload)
         response = Message(code=code, payload=payload)
         self.respond(response, request)
+
+    def respond_with_non_final_error(self, request, code, payload):
+        """Sends an error to the client but keeps the request active in case the right data arrives"""
+        key = tuple(request.opt.uri_path), request.remote
+
+        def timeout_non_final_response(self):
+            self.log.info("Waiting for next blockwise request timed out")
+            self.protocol.incoming_requests.pop(self.key)
+            self.app_request.cancel()
+
+        # we don't want to have this incoming request around forever
+        self._next_block_timeout = self.protocol.loop.call_later(MAX_TRANSMIT_WAIT, timeout_non_final_response, self)
+        self.protocol.incoming_requests[self.key] = self
+
+        # responding with a non-final error means you MUST delete the
+        # existing response for this message, even if this is a huge
+        # middle finger to the standard
+        mkey = (request.remote, request.mid)
+        self.protocol._recent_messages.pop(mkey,None)
+
+        payload = payload.encode('ascii')
+        self.log.info("Sending non-final error response: %r"%payload)
+        response = Message(code=code, payload=payload)
+        self.send_response(response, request)
 
     def respond(self, app_response, request):
         """Take application-supplied response and prepare it for sending."""
