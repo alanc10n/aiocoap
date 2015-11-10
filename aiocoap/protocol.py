@@ -981,6 +981,11 @@ class Responder(object):
             request = initial_block
 
         #TODO: Request with Block2 option and non-zero block number should get error response
+        if request.opt.block2 is not None:
+            if request.opt.block2.block_number != 0:
+                self.respond_with_error(request, BAD_REQUEST, "Invalid block number")
+                self.log.error("Request with Block2 and nonzero block number")
+                return
 
         delayed_ack = self.protocol.loop.call_later(EMPTY_ACK_DELAY, self.send_empty_ack, request)
 
