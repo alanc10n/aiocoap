@@ -104,7 +104,7 @@ class Message(object):
             self.set_request_uri(uri)
 
     def __repr__(self):
-        return "<aiocoap.Message at %#x: %s %s (ID %r, token %r) remote %s%s%s>"%(
+        return "<aiocoap.Message at %#x: %s %s (ID %r, token %r) remote %s%s%r%s>"%(
                 id(self),
                 self.mtype,
                 self.code,
@@ -112,6 +112,7 @@ class Message(object):
                 self.token,
                 self.remote,
                 ", %s option(s)"%len(self.opt._options) if self.opt._options else "",
+                 self.opt,
                 ", %s byte(s) payload"%len(self.payload) if self.payload else ""
                 )
 
